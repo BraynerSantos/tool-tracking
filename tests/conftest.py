@@ -9,7 +9,7 @@ from app.db import connect, seed_defaults
 def engine(tmp_path):
     db_path = tmp_path / "test.sqlite"
     conn = connect(db_path)
-    seed_defaults(conn)
+    seed_defaults(conn, seed_tool_types=True)  # test fixtures use the 4 built-in types
     conn.close()
     return db_path
 

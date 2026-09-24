@@ -3,8 +3,9 @@ from dataclasses import dataclass
 import sys
 from pathlib import Path
 
-DEFAULT_COMPANY = "Tool DB"
+DEFAULT_COMPANY = "Insaco"
 DEFAULT_PORT = 3000
+DEFAULT_BACKUP_DIR = "backup"  # folder next to the exe
 
 def base_dir() -> Path:
     """Folder the exe lives in (frozen) or the repo root (dev)."""
@@ -33,19 +34,24 @@ def load_config(base: Path | None = None) -> AppConfig:
     if not ini_path.exists():
         parser["General"] = {"CompanyName": DEFAULT_COMPANY, "Port": str(DEFAULT_PORT)}
         parser["Database"] = {"DatabasePath": "tooldb.sqlite"}
-        parser["Backup"] = {"BackupDir": ""}
+        parser["Backup"] = {"BackupDir": DEFAULT_BACKUP_DIR}
         with ini_path.open("w", encoding="utf-8") as f:
             parser.write(f)
     parser.read(ini_path, encoding="utf-8")
     db_path = _resolve(parser["Database"]["DatabasePath"], root)
     db_path.parent.mkdir(parents=True, exist_ok=True)
-    backup_raw = parser["Backup"].get("BackupDir", "").strip()
+    # BackupDir: empty string explicitly disables auto-backup; a missing key
+    # falls back to the default `backup` folder next to the exe.
+    backup_raw = parser["Backup"].get("BackupDir", DEFAULT_BACKUP_DIR).strip()
+    backup_dir = _resolve(backup_raw, root) if backup_raw else None
+    if backup_dir is not None:
+        backup_dir.mkdir(parents=True, exist_ok=True)
     return AppConfig(
         base_dir=root,
         db_path=db_path,
         port=parser["General"].getint("Port", fallback=DEFAULT_PORT),
         company_name=parser["General"].get("CompanyName", fallback=DEFAULT_COMPANY),
-        backup_dir=_resolve(backup_raw, root) if backup_raw else None,
+        backup_dir=backup_dir,
         session_secret=_load_or_create_secret(root),
     )
 

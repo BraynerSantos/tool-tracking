@@ -63,9 +63,12 @@ inventory, activity_log) with one addition:
 
 - `employees.is_admin INTEGER NOT NULL DEFAULT 0`
 
-Seed on empty database: the 4 tool types with their attribute schemas (Cutting tools,
-Holders & workholding, Grinding/diamond tools, Measuring tools) and employee
-`ADMIN`/`Administrator` with `is_admin = 1`.
+Seeded on every start (INSERT OR IGNORE): the 4 tool types with their attribute
+schemas (Cutting tools, Holders & workholding, Grinding/diamond tools, Measuring
+tools) and bootstrap admin employees `000`/`Administrator` and
+`ADMIN`/`Administrator` with `is_admin = 1` — so the 000 owner account exists
+even on databases created before this change, and deactivating one is never
+undone by a restart.
 
 ## Roles
 

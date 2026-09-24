@@ -5,10 +5,13 @@ scheduled auto-backup (Task 11).
 """
 
 import sqlite3
+import sys
 import threading
 import time
 from datetime import date
 from pathlib import Path
+
+from app.applog import append_log
 
 KEEP = 30  # daily copies retained by prune_backups
 
@@ -50,6 +53,27 @@ def prune_backups(backup_dir) -> None:
         old.unlink(missing_ok=True)
 
 
+def try_backup_once(config, last) -> object:
+    """Run today's backup if not already done; returns the new ``last`` stamp.
+
+    A failure prints to stderr (console runs) and to tooldb.log next to the
+    exe (windowed runs have no console), and returns the old stamp so the
+    loop retries next hour — a failed backup must never kill the app, but
+    the operator must be able to see the data-protection feature is not
+    working.
+    """
+    today = date.today()
+    if last == today:
+        return last
+    try:
+        auto_backup_once(config.db_path, config.backup_dir, today)
+        return today
+    except Exception as e:
+        print(f"auto-backup failed: {e}", file=sys.stderr)
+        append_log(getattr(config, "base_dir", None), f"auto-backup failed: {e}")
+        return last
+
+
 def run_auto_backup_daily(config) -> None:
     """Start the daemon thread that takes one backup per day, hourly checks.
 
@@ -61,13 +85,7 @@ def run_auto_backup_daily(config) -> None:
     def loop():
         last = None
         while True:
-            today = date.today()
-            if last != today:
-                try:
-                    auto_backup_once(config.db_path, config.backup_dir, today)
-                    last = today
-                except Exception:
-                    pass  # retry next hour; a failed backup must never kill the app
+            last = try_backup_once(config, last)
             time.sleep(3600)
 
     threading.Thread(target=loop, daemon=True, name="auto-backup").start()

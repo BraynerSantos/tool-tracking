@@ -56,16 +56,16 @@ function Employees() {
         </div>
       </div>
       <div className="bg-white shadow rounded-lg p-6 space-y-3">
-        <h2 className="font-medium text-slate-700">Bulk import</h2>
+        <h2 className="font-medium text-slate-700">Bulk import users</h2>
         <p className="text-sm text-slate-500">Paste lines of <code>EmployeeID,Name</code> (e.g. from Excel).</p>
         <textarea value={paste} onChange={e => setPaste(e.target.value)} rows={4}
-          className={`${F} w-full font-mono`} placeholder={'E1001,Jane Doe\nE1002,John Smith'} />
+          className={`${F} w-full font-mono`} placeholder={'102,Jane Doe\nE106,John Doe\n1104,Bob Smith'} />
         <button className={Btn} onClick={async () => {
           setMsg('');
           try { const r = await api('/employees/import', { method: 'POST', body: { rows: parsePaste() } });
             setMsg(`Imported ${r.imported}, skipped ${r.skipped}.`); setPaste(''); load(); }
           catch (e) { setMsg(e.message); }
-        }}>Import</button>
+        }}>Add Users</button>
       </div>
       <div className="bg-white shadow rounded-lg p-6 space-y-3">
         <h2 className="font-medium text-slate-700">Employees</h2>
@@ -113,11 +113,30 @@ function Departments() {
       </div>
       {departments.map(d => (
         <div key={d.id} className="bg-white shadow rounded-lg p-6">
-          <h2 className="font-medium text-slate-700">{d.name}</h2>
+          <div className="flex items-center gap-3">
+            <h2 className="font-medium text-slate-700">{d.name}</h2>
+            <button className="text-sky-600 hover:underline text-xs" onClick={async () => {
+              const name = prompt(`Rename department "${d.name}" to:`, d.name);
+              if (!name || name === d.name) return;
+              try { await api(`/departments/${d.id}`, { method: 'PATCH', body: { name } }); load(); }
+              catch (e) { alert(e.message); }
+            }}>rename</button>
+            <button className="text-red-600 hover:underline text-xs" onClick={async () => {
+              if (!confirm(`Delete department "${d.name}"? Only possible when it has no locations.`)) return;
+              try { await api(`/departments/${d.id}`, { method: 'DELETE' }); load(); }
+              catch (e) { alert(e.message); }
+            }}>delete</button>
+          </div>
           <ul className="text-sm my-2 space-y-1">
             {d.locations.map(l => (
               <li key={l.id} className="flex gap-2 items-center">
                 {l.name}
+                <button className="text-sky-600 hover:underline text-xs" onClick={async () => {
+                  const name = prompt(`Rename location "${l.name}" to:`, l.name);
+                  if (!name || name === l.name) return;
+                  try { await api(`/locations/${l.id}`, { method: 'PATCH', body: { name } }); load(); }
+                  catch (e) { alert(e.message); }
+                }}>rename</button>
                 <button className="text-red-600 hover:underline text-xs" onClick={async () => {
                   try { await api(`/locations/${l.id}`, { method: 'DELETE' }); load(); }
                   catch (e) { alert(e.message); }
@@ -171,7 +190,21 @@ function ToolTypes() {
       </div>
       {types.map(t => (
         <div key={t.id} className="bg-white shadow rounded-lg p-6">
-          <h2 className="font-medium text-slate-700">{t.name}</h2>
+          <div className="flex items-center gap-3">
+            <h2 className="font-medium text-slate-700">{t.name}</h2>
+            <button className="text-sky-600 hover:underline text-xs" onClick={async () => {
+              const name = prompt(`Rename tool type "${t.name}" to:`, t.name);
+              if (!name || name === t.name) return;
+              try { await api(`/tool-types/${t.id}`, { method: 'PATCH', body: { name } }); load(); }
+              catch (e) { alert(e.message); }
+            }}>rename</button>
+            <button className="ml-auto text-red-600 hover:underline text-xs"
+              onClick={async () => {
+                if (!confirm(`Remove tool type "${t.name}"? Only possible when no tools use it.`)) return;
+                try { await api(`/tool-types/${t.id}`, { method: 'DELETE' }); load(); }
+                catch (e) { alert(e.message); }
+              }}>remove type</button>
+          </div>
           <ul className="text-sm my-2 space-y-1">
             {t.attributeSchema.map((f, i) => (
               <li key={f.key + i} className="flex gap-2 items-center">

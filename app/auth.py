@@ -1,19 +1,11 @@
 from fastapi import APIRouter, Depends, HTTPException, Request
 
+from app.db import get_conn
+
 
 def require_user(request: Request):
     if not request.session.get("badge_id"):
         raise HTTPException(status_code=401, detail="Not logged in")
-
-
-def _request_conn(request: Request):
-    """The app's single connection, resolvable by FastAPI's dependency system.
-
-    Routers receive the connection via a closure-provided ``get_conn``; guards that
-    are used both as dependencies (``Depends(require_admin)``) and as plain calls
-    (``require_admin(request, conn)``) read the same object off ``app.state``.
-    """
-    return request.app.state.conn
 
 
 def get_employee(request: Request, conn):
@@ -25,7 +17,12 @@ def get_employee(request: Request, conn):
     ).fetchone()
 
 
-def require_admin(request: Request, conn=Depends(_request_conn)):
+def require_admin(request: Request, conn=Depends(get_conn)):
+    # Depends(get_conn) — the SAME callable every route uses, so FastAPI's
+    # per-request dependency cache resolves it once and the conn_lock is
+    # acquired a single time even when a route also declares conn=Depends(get_conn).
+    # Guards used as plain calls (`require_admin(request, conn)`) receive the
+    # already-locked conn from their caller.
     emp = get_employee(request, conn)
     if emp is None:
         raise HTTPException(status_code=401, detail="Not logged in")

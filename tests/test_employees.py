@@ -5,8 +5,8 @@
 - Lookup responses are {badgeId, name, isAdmin}.
 - PATCH accepts active and/or isAdmin, with a last-admin guard (409).
 
-Conftest seeds ADMIN (bootstrap), E100 'Admin User' (admin) and
-E200 'Regular User' (non-admin).
+Conftest seeds the 000/ADMIN bootstrap admins, E100 'Admin User' (admin)
+and E200 'Regular User' (non-admin).
 """
 
 
@@ -14,6 +14,7 @@ def test_lists_employees_with_roles(admin_client):
     res = admin_client.get("/api/employees")
     assert res.status_code == 200
     assert res.json() == [
+        {"badgeId": "000", "name": "Administrator", "active": 1, "isAdmin": True},
         {"badgeId": "ADMIN", "name": "Administrator", "active": 1, "isAdmin": True},
         {"badgeId": "E100", "name": "Admin User", "active": 1, "isAdmin": True},
         {"badgeId": "E200", "name": "Regular User", "active": 1, "isAdmin": False},
@@ -48,8 +49,8 @@ def test_imports_rows_upserting_new_badges(admin_client, conn):
     ]})
     assert res.status_code == 200
     assert res.json() == {"imported": 2, "skipped": 1}
-    # 3 pre-seeded (ADMIN bootstrap + E100 + E200) + 2 imported
-    assert conn.execute("SELECT COUNT(*) c FROM employees").fetchone()["c"] == 5
+    # 4 pre-seeded (000/ADMIN bootstraps + E100 + E200) + 2 imported
+    assert conn.execute("SELECT COUNT(*) c FROM employees").fetchone()["c"] == 6
 
 
 def test_import_renames_and_reactivates_same_badge_new_name(admin_client, conn):
@@ -153,8 +154,8 @@ def test_promote_and_demote(admin_client, user_client, conn):
 
 
 def test_last_admin_guard(admin_client, conn):
-    # conftest seeds the ADMIN bootstrap account; make E100 the only *active* admin
-    conn.execute("UPDATE employees SET active=0 WHERE badge_id='ADMIN'")
+    # conftest seeds the 000/ADMIN bootstrap accounts; make E100 the only *active* admin
+    conn.execute("UPDATE employees SET active=0 WHERE badge_id IN ('ADMIN', '000')")
     conn.commit()
     assert admin_client.patch("/api/employees/E100", json={"isAdmin": False}).status_code == 409
     assert admin_client.patch("/api/employees/E100", json={"active": False}).status_code == 409

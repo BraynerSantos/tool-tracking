@@ -49,7 +49,7 @@ export default function Search() {
     <div className="space-y-4">
       <div className="flex gap-2 flex-wrap">
         <input value={q} onChange={e => set({ q: e.target.value })}
-          placeholder="Search tools and attributes — e.g. 6mm, HSK, TiAlN"
+          placeholder="Search for a tool — enter a name, size, or attribute"
           className="flex-1 min-w-64 border border-slate-300 rounded-lg px-4 py-2 text-lg focus:outline-none focus:ring-2 focus:ring-sky-500" />
         <button onClick={() => window.print()}
           className="no-print bg-slate-700 hover:bg-slate-600 text-white rounded-lg px-4 py-2">Print</button>
