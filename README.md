@@ -1,5 +1,8 @@
 # Tool DB — CNC Tool Tracking (Python)
 
+[![CI](https://github.com/BraynerSantos/tool-tracking/actions/workflows/ci.yml/badge.svg)](https://github.com/BraynerSantos/tool-tracking/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+
 A self-hosted tool-tracking web app: employees log in with their badge ID,
 search tools by name/attribute/description, and see quantities per location.
 Admins manage employees, departments, locations, tool types (with custom
@@ -8,6 +11,23 @@ attributes), export CSV, print filtered lists, and download SQLite backups.
 Python (FastAPI + uvicorn + SQLite) rewrite of the original Node app, shipped
 as a single portable Windows folder — no Node, no Python install needed on the
 server PC.
+
+## Screenshots
+| Badge login | Admin — employees |
+| --- | --- |
+| ![Login: scan or type a badge ID](docs/screenshots/login.png) | ![Admin: add, bulk-import, deactivate, and promote employees](docs/screenshots/admin-employees.png) |
+
+| Inventory with low-stock alert | Add-tool form with type-specific attributes |
+| --- | --- |
+| ![Full tool list with low-stock badge and reorder minimums](docs/screenshots/search-all.png) | ![Add tool: attribute fields generated from the selected tool type](docs/screenshots/tool-form.png) |
+
+| Search (filtered) | Tool detail |
+| --- | --- |
+| ![Search page: filter tools by name, size, or attribute, with quantities per location](docs/screenshots/search.png) | ![Tool detail: custom type attributes, inventory by location, activity history](docs/screenshots/tool-detail.png) |
+
+| Admin — departments & locations | Admin — tool types |
+| --- | --- |
+| ![Admin: departments, locations, and database backup](docs/screenshots/admin-departments.png) | ![Admin: tool types with custom attribute schemas](docs/screenshots/admin-tooltypes.png) |
 
 ## Deploy (Windows, no installer)
 
@@ -99,6 +119,46 @@ Sessions are signed cookies, not server-side storage — they keep working
 across server restarts because the signing secret is the stable
 `session-secret` file. Only deleting that file (or replacing it) invalidates
 everyone's sessions and forces a fresh login.
+
+## Design decisions
+
+Trade-offs made deliberately for this app's setting — a small shop floor with
+one always-on Windows PC as the server. They would be different choices for a
+internet-facing app at scale.
+
+**Badge-only login (no passwords).** Employees log in with their badge ID and
+no secret. That's a fit for a shop-floor kiosk: the audience is a physically
+controlled building, the alternative (passwords for machine operators wearing
+gloves) is real friction, and admin actions are gated separately. If the app
+were exposed beyond the LAN, a PIN or password per badge would come first.
+
+**One shared SQLite connection behind a lock.** Sync FastAPI endpoints run in
+a threadpool, so separate connections per request could interleave transactions
+(a 409 raised mid-`with conn:` in one request would roll back another
+request's in-flight writes). Instead every request shares one connection,
+handed out under `threading.Lock` by a single dependency
+(`app/db.py`), which serializes DB access. At shop scale (a handful of
+concurrent users, sub-millisecond queries) the lock is never the bottleneck;
+past that, the fix is per-request connections and/or Postgres, not more locks.
+
+**SQLite + WAL, not a database server.** Zero-install, the data is one file
+that's trivial to back up (and the app backs it up automatically), and WAL
+mode lets readers proceed while a write is in flight. The schema uses real
+foreign keys and CHECK constraints, so moving to Postgres later is a migration,
+not a rewrite.
+
+**Signed-cookie sessions with a stable secret.** Sessions are itsdangerous
+cookies, not server-side storage, and the signing secret lives in the
+`session-secret` file. Restarting the server therefore doesn't log everyone
+out — only deleting or replacing that file does. `SameSite=lax` cookies plus
+a same-origin SPA keep the CSRF surface minimal; there are no cross-site
+consumers of the API.
+
+**Shipped as a portable PyInstaller folder, not a service.** The server PC is
+managed by non-developers: no Python install, no installer, no admin rights —
+copy `dist\ToolDB`, double-click `ToolDB.exe`. Diagnostics go to `tooldb.log`,
+auto-start is plain Task Scheduler, and disaster recovery is documented as
+"copy the folder, restore a backup file".
 
 ## Building from source
 

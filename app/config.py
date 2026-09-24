@@ -3,7 +3,7 @@ from dataclasses import dataclass
 import sys
 from pathlib import Path
 
-DEFAULT_COMPANY = "Insaco"
+DEFAULT_COMPANY = "ToolDB"
 DEFAULT_PORT = 3000
 DEFAULT_BACKUP_DIR = "backup"  # folder next to the exe
 

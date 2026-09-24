@@ -1,10 +1,17 @@
+import sys
 from pathlib import Path
+
+import pytest
 
 from app.config import load_config
 
+windows_only = pytest.mark.skipif(
+    sys.platform != "win32",
+    reason="tests Windows path handling (backslash separators, drive letters)")
+
 def test_creates_defaults(tmp_path):
     config = load_config(tmp_path)
-    assert config.company_name == "Insaco"
+    assert config.company_name == "ToolDB"
     assert config.port == 3000
     assert config.db_path == tmp_path / "tooldb.sqlite"
     assert config.backup_dir == tmp_path / "backup"  # default: backup folder next to the exe
@@ -12,6 +19,7 @@ def test_creates_defaults(tmp_path):
     assert (tmp_path / "config.ini").exists()
     assert config.db_path.parent.exists()
 
+@windows_only
 def test_reads_existing_values(tmp_path):
     (tmp_path / "config.ini").write_text(
         "[General]\nCompanyName = Acme Ceramics\nPort = 8080\n"
@@ -24,6 +32,7 @@ def test_reads_existing_values(tmp_path):
     assert config.backup_dir == tmp_path / "backups"
     assert (tmp_path / "backups").exists()  # backup folder created at startup
 
+@windows_only
 def test_relative_db_path_resolves_against_base(tmp_path):
     (tmp_path / "config.ini").write_text(
         "[General]\nPort = 3000\n[Database]\nDatabasePath = data\\db.sqlite\n[Backup]\nBackupDir =\n",
